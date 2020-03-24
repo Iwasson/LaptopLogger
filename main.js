@@ -124,20 +124,21 @@ function main(auth) {
 function processCommand(auth, words, event) {
     switch (words[1].toLowerCase()) {
         case "help":
-            event.respond("This bot is for checking in and checking out Devices \n\"Checkout LaptopId UserId\" checks out LaptopId to UserID\n\t(chromebook #XXXX is checked out to user #XXXX)" +
-                "\n\"Checkin LaptopID\" checks in LaptopId \n\t(chromebook #XXXX has been checked in by user #XXXX)");
+            event.respond("This bot is for checking in and checking out Devices \n\"Loan LaptopId UserId\" checks out LaptopId to UserID\n\t(chromebook #XXXX is checked out to user #XXXX)" +
+                "\n\"Return LaptopID\" checks in LaptopId \n\t(chromebook #XXXX has been checked in by user #XXXX)");
             break;
-        case "checkout":
-            if (words[2] == undefined && words[3] == undefined) {
+        case "loan":
+            if (words[2] == null || words[3] == null) {
                 event.respond("Incorrect Input, please try again or use help");
             }
             else {
+                console.log(words[2] + " " + words[3]);
                 checkOut(auth, words[2], words[3], event);
             }
 
             break;
-        case "checkin":
-            if (words[2] == undefined) {
+        case "return":
+            if (words[2] == null) {
                 event.respond("Incorrect Input, please try again or use help");
             }
             else {
@@ -174,13 +175,13 @@ async function checkOut(auth, device, user, event) {
     let position = 2;
 
     dataArray.forEach(element => {
-        if (element[0] == device) {
+        if (element[0].toUpperCase() == device.toUpperCase()) {
             found = true;
             //if the device is in, therefore ready to be checked out
             if (element[1] == "in") {
                 //need to change the element to have the users ID attached
                 updateDeviceOut(auth, position, user);
-                updateBackOut(auth, device, user);
+                updateBackOut(auth, device.toUpperCase(), user);
             }
             else {
                 event.respond("That device is listed as already checked out. Please check the log and verify this.");
@@ -214,12 +215,13 @@ async function checkIn(auth, device, event) {
     let found = false;
 
     dataArray.forEach(element => {
-        if (element[0] == device) {
+        if (element[0].toUpperCase() == device.toUpperCase()) {
             found = true;
             //if the device is out, therefore ready to be checked in
             if (element[1] == "out") {
                 //need to change the element to have the users ID attached
                 updateDeviceIn(auth, position);
+                updateBackIn(auth, device.toUpperCase());
             }
             //otherwise the laptop was never checked out
             else {
@@ -276,19 +278,27 @@ async function updateDeviceOut(auth, pos, user) {
     let res = await sheets.spreadsheets.values.update(updateOptions);
 }
 
+//updates the backlog to show who checked out which device at what time
+//checkout always adds a new entry
 async function updateBackOut(auth, device, user) {
     var date = new Date();
 
     var fullDate = date.getMonth() + 1 + "/" + date.getDate() + "/" + date.getFullYear();
     var hour = date.getHours();
-    var newRange = 'BackLog!A' + pos;
+    var time = date.getMinutes();
+
+    if(time < 10) {
+        time = "0" + time;
+    }
+
+    var newRange = 'BackLog!A2';
 
 
     const sheets = google.sheets({ version: 'v4', auth });
 
     const opt = {
         spreadsheetId: spreadId, //spreadsheet id
-        range:'169382106!A2:C100'    //value range we are looking at, we need to check E2:E100 to see if there is a clock on time
+        range:'BackLog!A2:C100'    //value range we are looking at
     };
 
 
@@ -296,10 +306,10 @@ async function updateBackOut(auth, device, user) {
     dataArray = data.data.values;
 
     vals = {
-        "range": "LaptopLog!A" + 1,
+        "range": "BackLog!A2",
         "majorDimension": "ROWS",
         "values": [
-            [user, device, fullDate, null],
+            [user, device, hour + ":" + time + "--" + fullDate , null],
         ],
     };
 
@@ -307,11 +317,11 @@ async function updateBackOut(auth, device, user) {
         spreadsheetId: spreadId,
         range: newRange,
         valueInputOption: 'USER_ENTERED',
+        insertDataOption: 'INSERT_ROWS',
         resource: vals,
     };
 
-
-    let res = await sheets.spreadsheets.values.update(updateOptions);
+    let res = await sheets.spreadsheets.values.append(updateOptions);
     
 }
 
@@ -328,7 +338,7 @@ async function updateDeviceIn(auth, pos) {
 
     const opt = {
         spreadsheetId: spreadId, //spreadsheet id
-        range: 'A2:C100'    //value range we are looking at, we need to check E2:E100 to see if there is a clock on time
+        range: 'A2:C100'    //value range we are looking at
     };
 
 
@@ -350,10 +360,61 @@ async function updateDeviceIn(auth, pos) {
         resource: vals,
     };
 
-
-
     let res = await sheets.spreadsheets.values.update(updateOptions);
 
+}
+
+//scans the backlog for the correct entry for this device and adds a checkin date and time to the entry
+async function updateBackIn(auth, device) {
+    var date = new Date();
+
+    var fullDate = date.getMonth() + 1 + "/" + date.getDate() + "/" + date.getFullYear();
+    var hour = date.getHours();
+    var time = date.getMinutes();
+
+    if(time < 10) {
+        time = "0" + time;
+    }
+
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    const opt = {
+        spreadsheetId: spreadId, //spreadsheet id
+        range:'BackLog!A2:D1000'    //value range we are looking at
+    };
+
+
+    let data = await sheets.spreadsheets.values.get(opt);
+    dataArray = data.data.values;
+
+    let position = 2;
+    let pos = 0;
+
+    dataArray.forEach(element => {
+        if(element[1] == device) {
+            pos = position;
+        }
+        position += 1;
+    });
+
+    var newRange = 'BackLog!A' + pos;
+
+    vals = {
+        "range": "BackLog!A" + pos,
+        "majorDimension": "ROWS",
+        "values": [
+            [null, null, null, hour + ":" + time + "--" + fullDate],
+        ],
+    };
+
+    const updateOptions = {
+        spreadsheetId: spreadId,
+        range: newRange,
+        valueInputOption: 'USER_ENTERED',
+        resource: vals,
+    };
+
+    let res = await sheets.spreadsheets.values.update(updateOptions);
 }
 
 //returns true if laptop is checked out and false if not checked out
