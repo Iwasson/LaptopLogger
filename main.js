@@ -172,17 +172,31 @@ async function checkOut(auth, device, user, event) {
     dataArray = data.data.values;
 
     let found = false;
+    let duplicate = false;
     let position = 2;
+
+    dataArray.forEach(element => {
+        if (element[2] != null) {
+            if (element[2].toUpperCase() == user.toUpperCase()) {
+                console.log(element[2]);
+                duplicate = true;
+                event.respond("User " + user + " already has a device checked out. Please check the log and verify this.");
+            }
+        }
+    });
 
     dataArray.forEach(element => {
         if (element[0].toUpperCase() == device.toUpperCase()) {
             found = true;
             //if the device is in, therefore ready to be checked out
-            if (element[1] == "in") {
+            if (element[1] == "in" && duplicate == false) {
                 //need to change the element to have the users ID attached
                 updateDeviceOut(auth, position, user);
                 updateBackOut(auth, device.toUpperCase(), user);
             }
+            else if(duplicate == true) {
+                console.log("Error");
+            } 
             else {
                 event.respond("That device is listed as already checked out. Please check the log and verify this.");
                 console.log("That device is listed as already checked out. \nPlease check the log and verify this.");
@@ -287,7 +301,7 @@ async function updateBackOut(auth, device, user) {
     var hour = date.getHours();
     var time = date.getMinutes();
 
-    if(time < 10) {
+    if (time < 10) {
         time = "0" + time;
     }
 
@@ -298,7 +312,7 @@ async function updateBackOut(auth, device, user) {
 
     const opt = {
         spreadsheetId: spreadId, //spreadsheet id
-        range:'BackLog!A2:C100'    //value range we are looking at
+        range: 'BackLog!A2:C100'    //value range we are looking at
     };
 
 
@@ -309,7 +323,7 @@ async function updateBackOut(auth, device, user) {
         "range": "BackLog!A2",
         "majorDimension": "ROWS",
         "values": [
-            [user, device, hour + ":" + time + "--" + fullDate , null],
+            [user, device, hour + ":" + time + "--" + fullDate, null],
         ],
     };
 
@@ -322,7 +336,7 @@ async function updateBackOut(auth, device, user) {
     };
 
     let res = await sheets.spreadsheets.values.append(updateOptions);
-    
+
 }
 
 //updates the device to remove users ID and set the state to In
@@ -372,7 +386,7 @@ async function updateBackIn(auth, device) {
     var hour = date.getHours();
     var time = date.getMinutes();
 
-    if(time < 10) {
+    if (time < 10) {
         time = "0" + time;
     }
 
@@ -380,7 +394,7 @@ async function updateBackIn(auth, device) {
 
     const opt = {
         spreadsheetId: spreadId, //spreadsheet id
-        range:'BackLog!A2:D1000'    //value range we are looking at
+        range: 'BackLog!A2:D1000'    //value range we are looking at
     };
 
 
@@ -391,7 +405,7 @@ async function updateBackIn(auth, device) {
     let pos = 0;
 
     dataArray.forEach(element => {
-        if(element[1] == device) {
+        if (element[1] == device) {
             pos = position;
         }
         position += 1;
