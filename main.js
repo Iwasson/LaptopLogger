@@ -124,8 +124,8 @@ function main(auth) {
 function processCommand(auth, words, event) {
     switch (words[1].toLowerCase()) {
         case "help":
-            event.respond("This bot is for checking in and checking out Devices \n<Checkout LaptopId UserId> checks out LaptopId to UserID\n\t(chromebook #XXXX is checked out to user #XXXX)" +
-                "\n<Checkin LaptopID> checks in LaptopId \n\t(chromebook #XXXX has been checked in by user #XXXX)");
+            event.respond("This bot is for checking in and checking out Devices \n\"Checkout LaptopId UserId\" checks out LaptopId to UserID\n\t(chromebook #XXXX is checked out to user #XXXX)" +
+                "\n\"Checkin LaptopID\" checks in LaptopId \n\t(chromebook #XXXX has been checked in by user #XXXX)");
             break;
         case "checkout":
             if (words[2] == undefined && words[3] == undefined) {
@@ -149,6 +149,12 @@ function processCommand(auth, words, event) {
             break;
     }
 }
+
+//used to get input from multiple fields. Needed for the scan gun to work
+//scan gun inputs text then hits enter key. Therefore needs to have multiple lines of questioning
+function getCheckOutInfo(auth, event) {
+}
+
 
 //checks out a laptop to a user
 async function checkOut(auth, device, user, event) {
