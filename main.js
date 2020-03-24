@@ -180,6 +180,7 @@ async function checkOut(auth, device, user, event) {
             if (element[1] == "in") {
                 //need to change the element to have the users ID attached
                 updateDeviceOut(auth, position, user);
+                updateBackOut(auth, device, user);
             }
             else {
                 event.respond("That device is listed as already checked out. Please check the log and verify this.");
@@ -275,6 +276,45 @@ async function updateDeviceOut(auth, pos, user) {
     let res = await sheets.spreadsheets.values.update(updateOptions);
 }
 
+async function updateBackOut(auth, device, user) {
+    var date = new Date();
+
+    var fullDate = date.getMonth() + 1 + "/" + date.getDate() + "/" + date.getFullYear();
+    var hour = date.getHours();
+    var newRange = 'BackLog!A' + pos;
+
+
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    const opt = {
+        spreadsheetId: spreadId, //spreadsheet id
+        range:'169382106!A2:C100'    //value range we are looking at, we need to check E2:E100 to see if there is a clock on time
+    };
+
+
+    let data = await sheets.spreadsheets.values.get(opt);
+    dataArray = data.data.values;
+
+    vals = {
+        "range": "LaptopLog!A" + 1,
+        "majorDimension": "ROWS",
+        "values": [
+            [user, device, fullDate, null],
+        ],
+    };
+
+    const updateOptions = {
+        spreadsheetId: spreadId,
+        range: newRange,
+        valueInputOption: 'USER_ENTERED',
+        resource: vals,
+    };
+
+
+    let res = await sheets.spreadsheets.values.update(updateOptions);
+    
+}
+
 //updates the device to remove users ID and set the state to In
 async function updateDeviceIn(auth, pos) {
     var date = new Date();
@@ -349,5 +389,3 @@ async function isChecked(auth, device) {
     }
     //return checked;
 }
-
-
