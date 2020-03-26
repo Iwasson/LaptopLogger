@@ -124,8 +124,13 @@ function main(auth) {
 function processCommand(auth, words, event) {
     switch (words[1].toLowerCase()) {
         case "help":
-            event.respond("This bot is for checking in and checking out Devices \n\"Loan LaptopId UserId\" checks out LaptopId to UserID\n\t(chromebook #XXXX is checked out to user #XXXX)" +
-                "\n\"Return LaptopID\" checks in LaptopId \n\t(chromebook #XXXX has been checked in by user #XXXX)");
+            event.respond("This bot is for checking in and checking out Devices" + 
+            "\n\"Loan LaptopId UserId\" checks out LaptopId to UserID" + 
+            "\n\t(chromebook #XXXX is checked out to user #XXXX)" +
+            "\n\"Return LaptopID\" checks in LaptopId " + 
+            "\n\t(chromebook #XXXX has been checked in by user #XXXX)" + 
+            "\n\"Info LaptopID\" lists all of the information about that Device.");
+
             break;
         case "loan":
             if (words[2] == null || words[3] == null) {
@@ -135,15 +140,23 @@ function processCommand(auth, words, event) {
                 console.log(words[2] + " " + words[3]);
                 checkOut(auth, words[2], words[3], event);
             }
-
             break;
         case "return":
             if (words[2] == null) {
-                event.respond("Incorrect Input, please try again or use help");
+                event.respond("Please include a Device ID to return.");
             }
             else {
                 checkIn(auth, words[2], event);
             }
+            break;
+        case "list":
+            listDevices(auth);
+            break;
+        case "info":
+            if(words[2] == null) {
+                event.respond("Please include a Device ID to get information.")
+            }
+            listInfo(auth, words[2], event);
             break;
         default:
             event.respond("Incorrect Input, please try again or use help");
@@ -151,9 +164,42 @@ function processCommand(auth, words, event) {
     }
 }
 
-//used to get input from multiple fields. Needed for the scan gun to work
-//scan gun inputs text then hits enter key. Therefore needs to have multiple lines of questioning
-function getCheckOutInfo(auth, event) {
+//get device information spit out in rocket chat
+async function listInfo(auth, device, event) {
+    const sheets = google.sheets({ version: 'v4', auth });
+    const opt = {
+        spreadsheetId: spreadId, //spreadsheet id
+        range: 'A2:K1000'    //value range we are looking at, we need to check E2:E100 to see if there is a clock on time
+    };
+
+    let data = await sheets.spreadsheets.values.get(opt);
+    dataArray = data.data.values;
+
+    let found = false;
+
+    dataArray.forEach(element => {
+        if (element[0] != null) {
+            if (element[0].toUpperCase() == device.toUpperCase()) {
+                found = true;
+                console.log(element);
+                event.respond("**Device ID:** " + element[0] + "\n" +
+                              "**Check-out State:** " + element[1] + "\n" + 
+                              "**User ID:** " + element[2] + "\n" + 
+                              "**Who owns the Device:** " + element[3] + "\n" +
+                              "**Model:** " + element[4] + "\n" + 
+                              "**Brand:** " + element[5] + "\n" + 
+                              "**Serial Number:** " + element[6] + "\n" + 
+                              "**Color:** " + element[7] + "\n" + 
+                              "**Architecture:** " + element[8] + "\n" +
+                              "**Max Chrome OS:** " + element[9] + "\n" +
+                              "**Notes:** " + element[10]);
+            }
+        }
+    });
+
+    if(found == false) {
+        event.respond("Device was not found. Please verify that it was entered correctly and that it exists in the spreadsheet.");
+    }
 }
 
 
@@ -165,7 +211,7 @@ async function checkOut(auth, device, user, event) {
 
     const opt = {
         spreadsheetId: spreadId, //spreadsheet id
-        range: 'A2:C100'    //value range we are looking at, we need to check E2:E100 to see if there is a clock on time
+        range: 'A2:C1000'    //value range we are looking at, we need to check E2:E100 to see if there is a clock on time
     };
 
     let data = await sheets.spreadsheets.values.get(opt);
